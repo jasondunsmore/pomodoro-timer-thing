@@ -1,16 +1,18 @@
+// Pins
 const int led1 = 3; 
 const int led2 = 5; 
 const int led3 = 6; 
 const int led4 = 9; 
 const int led5 = 10;
 const int button = 2;
-//const int timerMin = 25;
-//const int shortBreakMin = 5;
-//const int longBreakMin = 10;
-const int timerMin = 1;
-const int shortBreakMin = 1;
-const int longBreakMin = 2;
 
+// Timer
+const int timerMin = 25;
+const int shortBreakMin = 5;
+const int longBreakMin = 10;
+const int longBreakEvery = 4;
+
+// Variables
 int buttonState = 0;
 int fadeAmount = 5;
 int brightness = 0;
@@ -21,19 +23,22 @@ void setup() {
   Serial.begin(9600);
 }
 
-void breathe(int led, int secs) {
+void breathe(int led, int secs, long interval) {
   long msec = 0;
+  long previousMillis = 0;
   while (msec < secs*1000L) {
-    analogWrite(led, brightness);
-    brightness = brightness + fadeAmount;
+    unsigned long currentMillis = millis();
+    if(currentMillis - previousMillis > interval) {
+      previousMillis = currentMillis;
+      analogWrite(led, brightness);
+      brightness = brightness + fadeAmount;
 
-    // reverse the direction of the fading at the ends of the fade:
-    if (brightness <= 0 || brightness >= 255) {
-      fadeAmount = -fadeAmount;
+      // reverse the direction of the fading at the ends of the fade:
+      if (brightness <= 0 || brightness >= 255) {
+        fadeAmount = -fadeAmount;
+      }
+      msec = msec + interval;  // track cumulative time
     }
-    // wait for 30 milliseconds to see the dimming effect
-    delay(30);
-    msec = msec + 30;
   }
   analogWrite(led, 255);
 }
@@ -57,17 +62,16 @@ void allOff() {
 void takeBreak(int bsecs) {
   allOff();
   int secs = bsecs / 5;
-  breathe(led5, secs);
-  breathe(led4, secs);
-  breathe(led3, secs);
-  breathe(led2, secs);
-  breathe(led1, secs);
+  breathe(led5, secs, 15);
+  breathe(led4, secs, 15);
+  breathe(led3, secs, 15);
+  breathe(led2, secs, 15);
+  breathe(led1, secs, 15);
   allOff();
 }
 
-void waitBreak() {
-  // slow blink until button press
-  long interval = 2000;
+void waitBreak(int interval) {
+  // blink until button press
   long previousMillis = 0;
   int ledState = LOW;
   while (digitalRead(button) == LOW) {
@@ -87,12 +91,13 @@ void waitBreak() {
 
 void breakDone() {
   nDone = nDone + 1;
-  waitBreak();
 
-  // long break every 4 work sessions
-  if (nDone % 4 == 0) {
+  // long break every n work sessions
+  if (nDone % longBreakEvery == 0) {
+    waitBreak(500);
     takeBreak(shortBreakMin * 60);
   } else {
+    waitBreak(1500);
     takeBreak(longBreakMin * 60);
   }
 
@@ -145,11 +150,11 @@ void breakDone() {
 void work() {
   allOff();
   int sec = (timerMin * 60) / 5;
-  breathe(led1, sec);
-  breathe(led2, sec);
-  breathe(led3, sec);
-  breathe(led4, sec);
-  breathe(led5, sec);
+  breathe(led1, sec, 30);
+  breathe(led2, sec, 30);
+  breathe(led3, sec, 30);
+  breathe(led4, sec, 30);
+  breathe(led5, sec, 30);
   allOff();
 }
 
